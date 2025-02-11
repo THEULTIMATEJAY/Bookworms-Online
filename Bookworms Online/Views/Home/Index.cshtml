@@ -1,0 +1,33 @@
+﻿@{
+    ViewData["Title"] = "Welcome to Bookworms Online";
+    var user = Model as Bookworms_Online.Models.ApplicationUser;
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to Bookworms Online</h1>
+    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    @if (user != null)
+    {
+        <div>
+            <h2>Account Details</h2>
+            @if (!string.IsNullOrEmpty(user.PhotoPath))
+            {
+                <p><strong>Photo:</strong></p>
+                <img src="@Url.Content("~/uploads/" + user.PhotoPath)" alt="User Photo" class="img-thumbnail" style="max-width: 200px;" />
+            }
+            <p><strong>First Name:</strong> @user.FirstName</p>
+            <p><strong>Last Name:</strong> @user.LastName</p>
+            <p><strong>Email:</strong> @user.Email</p>
+            <p><strong>Mobile Number:</strong> @user.MobileNumber</p>
+            <p><strong>Billing Address:</strong> @user.BillingAddress</p>
+            <p><strong>Shipping Address:</strong> @user.ShippingAddress</p>
+            <p><strong>Credit Card Number:</strong> @user.CreditCardNo</p>
+            
+        </div>
+    }
+    else
+    {
+        <p>New here? <a asp-controller="Account" asp-action="Register">Register now</a></p>
+        <p>Already have an account? <a asp-controller="Account" asp-action="Login">Login here</a></p>
+    }
+</div>

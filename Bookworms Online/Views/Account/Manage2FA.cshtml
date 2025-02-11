@@ -1,0 +1,7 @@
+﻿@model Bookworms_Online.Models.TwoFactorViewModel
+<h2>Manage Two-Factor Authentication</h2>
+
+<form method="post" asp-controller="Account" asp-action="Manage2FA">
+    <button type="submit" asp-action="Enable2FA">Enable 2FA</button>
+    <button type="submit" asp-action="Disable2FA">Disable 2FA</button>
+</form>

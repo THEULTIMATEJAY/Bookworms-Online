@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookworms Online", "Bookworms Online\Bookworms Online.csproj", "{BEC05365-0459-4BD3-9EDF-F7B9F2EBB556}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BEC05365-0459-4BD3-9EDF-F7B9F2EBB556}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEC05365-0459-4BD3-9EDF-F7B9F2EBB556}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEC05365-0459-4BD3-9EDF-F7B9F2EBB556}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEC05365-0459-4BD3-9EDF-F7B9F2EBB556}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E9BDCED8-C373-41A1-A6FB-08F4A617456F}
+	EndGlobalSection
+EndGlobal

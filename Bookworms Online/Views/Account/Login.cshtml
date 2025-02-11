@@ -1,0 +1,31 @@
+﻿@model Bookworms_Online.Models.LoginViewModel
+
+<h2>Login</h2>
+
+<form method="post" asp-controller="Account" asp-action="Login">
+    @Html.AntiForgeryToken()
+    <div>
+        <label>Email:</label>
+        <input asp-for="Email" />
+        <span asp-validation-for="Email"></span>
+    </div>
+
+    <div>
+        <label>Password:</label>
+        <input asp-for="Password" type="password" />
+        <span asp-validation-for="Password"></span>
+    </div>
+
+    <input type="hidden" id="ReCaptchaToken" asp-for="ReCaptchaToken" />
+
+    <button type="submit">Login</button>
+</form>
+
+<script src="https://www.google.com/recaptcha/api.js?render=6LfywNIqAAAAAHRA6hwG9SkgiU6EM4fd0x5layFt"></script>
+<script>
+    grecaptcha.ready(function () {
+        grecaptcha.execute('6LfywNIqAAAAAHRA6hwG9SkgiU6EM4fd0x5layFt', { action: 'submit' }).then(function (token) {
+            document.getElementById("ReCaptchaToken").value = token;
+        });
+    });
+</script>
