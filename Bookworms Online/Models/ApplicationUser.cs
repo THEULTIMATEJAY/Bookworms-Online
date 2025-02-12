@@ -25,7 +25,8 @@ namespace Bookworms_Online.Models
 
         public string PhotoPath { get; set; }
         public bool IsTwoFactorEnabled { get; set; }
-        
+        public string? CurrentSessionId { get; set; }
+
     }
     
 }

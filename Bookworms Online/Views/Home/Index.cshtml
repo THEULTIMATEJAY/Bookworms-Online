@@ -13,7 +13,11 @@
             @if (!string.IsNullOrEmpty(user.PhotoPath))
             {
                 <p><strong>Photo:</strong></p>
-                <img src="@Url.Content("~/uploads/" + user.PhotoPath)" alt="User Photo" class="img-thumbnail" style="max-width: 200px;" />
+                <img src="~/@user.PhotoPath" alt="User Photo" class="img-thumbnail" style="max-width: 200px;" />
+            }
+            else
+            {
+                <img src="https://via.placeholder.com/150" alt="User Photo" class="img-thumbnail" style="max-width: 200px;">
             }
             <p><strong>First Name:</strong> @user.FirstName</p>
             <p><strong>Last Name:</strong> @user.LastName</p>

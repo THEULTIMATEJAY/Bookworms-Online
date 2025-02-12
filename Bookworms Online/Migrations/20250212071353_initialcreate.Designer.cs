@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Bookworms_Online.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250210113141_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250212071353_initialcreate")]
+    partial class initialcreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -43,8 +43,11 @@ namespace Bookworms_Online.Migrations
 
                     b.Property<string>("CreditCardNo")
                         .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("CurrentSessionId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)

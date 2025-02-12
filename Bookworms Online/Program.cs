@@ -10,6 +10,9 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddRazorPages();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -58,32 +61,32 @@ using (var scope = app.Services.CreateScope())
     context.Database.Migrate();
 
     // Create admin user
-    await CreateAdminUser(services);
+    //await CreateAdminUser(services);
 }
 
-async Task CreateAdminUser(IServiceProvider serviceProvider)
-{
-    var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+//async Task CreateAdminUser(IServiceProvider serviceProvider)
+//{
+//    var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+//    var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-    string roleName = "Admin";
-    if (!await roleManager.RoleExistsAsync(roleName))
-    {
-        await roleManager.CreateAsync(new IdentityRole(roleName));
-    }
+//    string roleName = "Admin";
+//    if (!await roleManager.RoleExistsAsync(roleName))
+//    {
+//        await roleManager.CreateAsync(new IdentityRole(roleName));
+//    }
 
-    string adminEmail = "admin@bookwormsonline.com";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-    if (adminUser == null)
-    {
-        adminUser = new ApplicationUser { UserName = adminEmail, Email = adminEmail,BillingAddress="Block 230B Yishun",CreditCardNo="1234123412341234",FirstName="Admin",LastName="Admin",MobileNumber="12345678",ShippingAddress="Block 230B Yishun" ,PhotoPath="Null"};
-        await userManager.CreateAsync(adminUser, "SecurePassword123!");
-        await userManager.AddToRoleAsync(adminUser, roleName);
-    }
-}
+//    string adminEmail = "admin@bookwormsonline.com";
+//    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+//    if (adminUser == null)
+//    {
+//        adminUser = new ApplicationUser { UserName = adminEmail, Email = adminEmail,BillingAddress="Block 230B Yishun",CreditCardNo="1234123412341234",FirstName="Admin",LastName="Admin",MobileNumber="12345678",ShippingAddress="Block 230B Yishun" ,PhotoPath="Null"};
+//        await userManager.CreateAsync(adminUser, "SecurePassword123!");
+//        await userManager.AddToRoleAsync(adminUser, roleName);
+//    }
+//}
 
 var serviceProvider = builder.Services.BuildServiceProvider();
-await CreateAdminUser(serviceProvider);
+//await CreateAdminUser(serviceProvider);
 
 
 
@@ -92,8 +95,8 @@ await CreateAdminUser(serviceProvider);
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
-    app.UseStatusCodePagesWithReExecute("/Error/{0}");
+    app.UseExceptionHandler("/Error/ErrorPage");
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
@@ -103,7 +106,7 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<SessionTimeoutMiddleware>();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

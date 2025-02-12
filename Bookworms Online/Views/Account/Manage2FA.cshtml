@@ -1,7 +1,12 @@
 ﻿@model Bookworms_Online.Models.TwoFactorViewModel
 <h2>Manage Two-Factor Authentication</h2>
 
-<form method="post" asp-controller="Account" asp-action="Manage2FA">
-    <button type="submit" asp-action="Enable2FA">Enable 2FA</button>
-    <button type="submit" asp-action="Disable2FA">Disable 2FA</button>
+<p>Two-Factor Authentication is currently: <strong>@(User.Identity.IsAuthenticated ? (ViewData["IsTwoFactorEnabled"] as bool? == true ? "Enabled" : "Disabled") : "Unknown")</strong></p>
+
+<form method="post" asp-controller="Account" asp-action="Enable2FA">
+    <button type="submit">Enable 2FA</button>
+</form>
+
+<form method="post" asp-controller="Account" asp-action="Disable2FA">
+    <button type="submit">Disable 2FA</button>
 </form>

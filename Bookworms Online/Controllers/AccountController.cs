@@ -41,6 +41,7 @@ namespace Bookworms_Online.Controllers
 
 
         }
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> ResetTestPassword()
         {
@@ -61,7 +62,7 @@ namespace Bookworms_Online.Controllers
             return Content("Password reset failed.");
         }
 
-
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
@@ -126,8 +127,34 @@ namespace Bookworms_Online.Controllers
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, true);
             if (result.Succeeded)
             {
-                _logger.LogInformation($"Login successful: {user.Email}");
+                string userId = user.Id;
+                string userEmail = user.Email;
+                string sessionID = Guid.NewGuid().ToString();
+
+                HttpContext.Session.SetString("User Id", userId);
+                HttpContext.Session.SetString("User Email", userEmail);
+                HttpContext.Session.SetString("CurrentSessionId", sessionID);
+
+                _logger.LogInformation($"Session created for user {userEmail}");
+
+                
                 await _auditLogService.LogActionAsync(user.Id, "Login Successful");
+
+                if (user.IsTwoFactorEnabled)
+                {
+                    // Generate OTP and store it in the session
+                    var otp = GenerateOTP(); // Implement this method to generate a random OTP
+                    HttpContext.Session.SetString("OTP", otp);
+                    HttpContext.Session.SetString("UserEmail", user.Email);
+
+                    // Send OTP to the user's email
+                    await _emailService.SendEmailAsync(user.Email, "Your OTP for 2FA",
+                        $"Your OTP is: {otp}");
+
+                    // Redirect to Verify2FA page
+                    return RedirectToAction("Verify2FA");
+                }
+
                 return RedirectToAction("Index", "Home");
             }
             else if (result.IsLockedOut)
@@ -145,13 +172,25 @@ namespace Bookworms_Online.Controllers
 
             return View(model);
         }
-
+        private string GenerateOTP()
+        {
+            var random = new Random();
+            return random.Next(100000, 999999).ToString(); // 6-digit OTP
+        }
+        [AllowAnonymous]
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
             var userId = HttpContext.Session.GetString("UserId");
             if (userId != null)
             {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user != null)
+                {
+                    user.CurrentSessionId = null; // Clear the session ID
+                    await _userManager.UpdateAsync(user);
+                }
                 await _auditLogService.LogActionAsync(userId, "Logout");
             }
 
@@ -160,14 +199,14 @@ namespace Bookworms_Online.Controllers
             return RedirectToAction("Login", "Account");
         }
 
-
+        [AllowAnonymous]
         //Register
         [HttpGet]
         public IActionResult Register()
         {
             return View();
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
@@ -283,27 +322,68 @@ namespace Bookworms_Online.Controllers
             return View(model);
         }
         [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Enable2FA()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user != null)
+            if (user == null)
             {
-                user.IsTwoFactorEnabled = true;
-                await _userManager.UpdateAsync(user);
+                _logger.LogError("User not found.");
+                return RedirectToAction("Index","Home");
             }
+
+            user.IsTwoFactorEnabled = true;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                _logger.LogInformation($"2FA enabled for {user.Email}");
+            }
+            else
+            {
+                _logger.LogError($"Error enabling 2FA: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+
             return RedirectToAction("Manage2FA");
         }
 
         [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Disable2FA()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                _logger.LogError("User not found.");
+                return RedirectToAction("Index","Home");
+            }
+
+            user.IsTwoFactorEnabled = false;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                _logger.LogInformation($"2FA disabled for {user.Email}");
+            }
+            else
+            {
+                _logger.LogError($"Error disabling 2FA: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+
+            return RedirectToAction("Manage2FA");
+        }
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> Manage2FA()
         {
             var user = await _userManager.GetUserAsync(User);
             if (user != null)
             {
-                user.IsTwoFactorEnabled = false;
-                await _userManager.UpdateAsync(user);
+                ViewData["IsTwoFactorEnabled"] = user.IsTwoFactorEnabled;
             }
-            return RedirectToAction("Manage2FA");
+            return View();
         }
         [HttpGet]
         public IActionResult Verify2FA()
@@ -312,7 +392,7 @@ namespace Bookworms_Online.Controllers
         }
 
         [HttpPost]
-        public IActionResult Verify2FA(TwoFactorViewModel model)
+        public async Task<IActionResult> Verify2FA(TwoFactorViewModel model)
         {
             var storedOtp = HttpContext.Session.GetString("OTP");
             var userEmail = HttpContext.Session.GetString("UserEmail");
@@ -320,18 +400,25 @@ namespace Bookworms_Online.Controllers
             if (storedOtp == model.OTP)
             {
                 HttpContext.Session.Remove("OTP");
-                return RedirectToAction("Index", "Home");
+                HttpContext.Session.Remove("UserEmail");
+                var user = await _userManager.FindByEmailAsync(userEmail);
+                if (user != null)
+                {
+                    await _signInManager.SignInAsync(user, isPersistent: false);
+                    return RedirectToAction("Index", "Home");
+                }
             }
 
             ModelState.AddModelError("", "Invalid OTP. Please try again.");
             return View(model);
         }
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult ForgotPassword()
         {
             return View();
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
@@ -353,12 +440,13 @@ namespace Bookworms_Online.Controllers
 
             return View("ForgotPasswordConfirmation");
         }
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult ResetPassword(string token, string email)
         {
             return View(new ResetPasswordViewModel { Token = token, Email = email });
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
@@ -376,6 +464,7 @@ namespace Bookworms_Online.Controllers
             if (result.Succeeded)
             {
                 await _auditLogService.LogActionAsync(user.Id, "Password Reset");
+                TempData["SuccessMessage"] = "Your password has been reset successfully. You can now log in with your new password.";
                 return RedirectToAction("Login", "Account");
             }
 

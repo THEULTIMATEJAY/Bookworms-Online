@@ -40,8 +40,9 @@
     </div>
     <div class="form-group">
         <label asp-for="Password" class="control-label"></label>
-        <input asp-for="Password" class="form-control" />
+        <input asp-for="Password" class="form-control" id="password" onkeyup="checkPasswordStrength()" />
         <span asp-validation-for="Password" class="text-danger"></span>
+        <div id="password-strength" class="text-danger"></div>
     </div>
     <div class="form-group">
         <label asp-for="ConfirmPassword" class="control-label"></label>
@@ -57,3 +58,49 @@
         <button type="submit" class="btn btn-primary">Register</button>
     </div>
 </form>
+
+<script>
+    function checkPasswordStrength() {
+        const password = document.getElementById("password").value;
+        const strengthIndicator = document.getElementById("password-strength");
+        let score = 0;
+        let complexity = "Very Weak";
+        let color = "red"; // Default color
+
+        // Check password criteria
+        if (password.length >= 12) score++; // Score 1
+        if (/[a-z]/.test(password)) score++; // Score 2
+        if (/[A-Z]/.test(password)) score++; // Score 3
+        if (/[0-9]/.test(password)) score++; // Score 4
+        if (/[^a-zA-Z0-9]/.test(password)) score++; // Score 5
+
+        // Determine complexity based on score
+        switch (score) {
+            case 0:
+            case 1:
+                complexity = "Very Weak";
+                color = "red";
+                break;
+            case 2:
+                complexity = "Weak";
+                color = "orange";
+                break;
+            case 3:
+                complexity = "Medium";
+                color = "yellow";
+                break;
+            case 4:
+                complexity = "Strong";
+                color = "blue";
+                break;
+            case 5:
+                complexity = "Excellent";
+                color = "green";
+                break;
+        }
+
+        // Update the strength indicator
+        strengthIndicator.textContent = `Password Strength: ${complexity}`;
+        strengthIndicator.style.color = color; // Set color directly for testing
+    }
+</script>

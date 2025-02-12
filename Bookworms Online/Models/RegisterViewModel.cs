@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Bookworms_Online.Attributes;
 namespace Bookworms_Online.Models
 {
     public class RegisterViewModel
@@ -25,6 +26,7 @@ namespace Bookworms_Online.Models
         public string Email { get; set; }
 
         [Required, DataType(DataType.Password)]
+        [PasswordStrength(ErrorMessage = "Password does not meet strength requirements.")]
         [StringLength(100, MinimumLength = 12, ErrorMessage = "Password must be at least 12 characters.")]
         public string Password { get; set; }
 
@@ -32,10 +34,9 @@ namespace Bookworms_Online.Models
         [Compare("Password", ErrorMessage = "Passwords do not match.")]
         public string ConfirmPassword { get; set; }
 
-        [Required]
+        
         [DataType(DataType.Upload)]
-        [FileExtensions(Extensions = "jpg,jpeg,png", ErrorMessage = "Please upload a JPG or PNG file.")]
-
+        
         public IFormFile? Photo { get; set; }
     }
 }
