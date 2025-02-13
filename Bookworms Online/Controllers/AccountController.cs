@@ -110,17 +110,7 @@ namespace Bookworms_Online.Controllers
                 ModelState.AddModelError("", "Account locked due to multiple failed login attempts.");
                 return View(model);
             }
-            // Check if the user's current session ID is null or matches the current session
-            var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
-            if (!string.IsNullOrEmpty(user.CurrentSessionId) && user.CurrentSessionId != currentSessionId)
-            {
-                // Invalidate the previous session
-                _logger.LogInformation($"Invalidating previous session for user {user.Email}");
-                await _signInManager.SignOutAsync(); // Sign out the user from the previous session
-                HttpContext.Session.Clear(); // Clear the session
-                ModelState.AddModelError("", "You have been logged out due to a new login.");
-                return View(model);
-            }
+            
             bool isPasswordCorrect = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordCorrect)
             {
@@ -141,23 +131,35 @@ namespace Bookworms_Online.Controllers
                 ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
-            
+            //if (string.IsNullOrEmpty(user.CurrentSessionId))
+            //{
+            //    _logger.LogWarning($"Login failed: User {user.Email} is already logged in on another browser.");
+            //    ModelState.AddModelError("", "You are already logged in on another browser.1");
+            //    return View(model);
+            //}
+            HttpContext.Session.Clear();
+            Response.Cookies.Delete(".AspNetCore.Identity.Application");
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, true);
             if (result.Succeeded)
             {
+
+                var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
                 // Generate a new session ID
                 var sessionId = Guid.NewGuid().ToString();
+                _logger.LogInformation($"Session ID: {sessionId}");
+                _logger.LogInformation($"Current Session ID: {currentSessionId}");
+               
                 HttpContext.Session.SetString("CurrentSessionId", sessionId);
 
+                
+                HttpContext.Session.SetString("UserId", user.Id);
+                HttpContext.Session.SetString("User Email", user.Email);
+                _logger.LogInformation($"Session data set for user {user.Email}: UserId = {user.Id}, SessionId = {sessionId}");
                 // Update the user's session ID in the database
                 user.CurrentSessionId = sessionId;
+                await _signInManager.PasswordSignInAsync(user, model.Password, false, true);
 
                 await _userManager.UpdateAsync(user);
-                HttpContext.Session.SetString("User Id", user.Id);
-                HttpContext.Session.SetString("User Email", user.Email);
-                _logger.LogInformation($"Session created for user {user.Email}");
-
-                
                 await _auditLogService.LogActionAsync(user.Id, "Login Successful");
                 
                 if (user.IsTwoFactorEnabled)
@@ -189,7 +191,7 @@ namespace Bookworms_Online.Controllers
                 await _auditLogService.LogActionAsync(user.Id, "Failed Login Attempt");
                 ModelState.AddModelError("", "Invalid login attempt.");
             }
-
+            
             return View(model);
         }
         private string GenerateOTP()
@@ -208,7 +210,7 @@ namespace Bookworms_Online.Controllers
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user != null)
                 {
-                    user.CurrentSessionId = null; // Clear the session ID
+                    user.CurrentSessionId = null;
                     await _userManager.UpdateAsync(user);
                 }
                 await _auditLogService.LogActionAsync(userId, "Logout");
@@ -216,6 +218,7 @@ namespace Bookworms_Online.Controllers
 
             await _signInManager.SignOutAsync();
             HttpContext.Session.Clear();
+            Response.Cookies.Delete(".AspNetCore.Identity.Application");
             return RedirectToAction("Login", "Account");
         }
 

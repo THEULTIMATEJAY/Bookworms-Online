@@ -12,12 +12,13 @@ namespace Bookworms_Online.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly EncryptionService _encryptionService;
+        private readonly ILogger<HomeController> _logger;
 
-
-        public HomeController(UserManager<ApplicationUser> userManager, EncryptionService encryptionService)
+        public HomeController(UserManager<ApplicationUser> userManager, EncryptionService encryptionService,ILogger<HomeController> logger)
         {
             _userManager = userManager;
             _encryptionService = encryptionService;
+            _logger = logger;
         }
         
         public async Task<IActionResult> Index()
@@ -27,9 +28,11 @@ namespace Bookworms_Online.Controllers
             {
                 user = await _userManager.GetUserAsync(User);
                 user.CreditCardNo = _encryptionService.Decrypt(user.CreditCardNo);
-            }
 
+            }
+            
             return View(user);
+
         }
         public async Task<IActionResult> Privacy()
         {

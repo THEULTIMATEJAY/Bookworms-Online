@@ -31,7 +31,8 @@ builder.Services.AddScoped<PasswordHistoryService>();
 builder.Services.AddScoped<ReCaptchaService>();
 
 builder.Services.AddHttpClient();
-
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(15); // Auto logout after 15 minutes of inactivity
@@ -108,7 +109,11 @@ app.UseHsts();
 app.UseStatusCodePages(async context =>
 {
     var response = context.HttpContext.Response;
-    if (response.StatusCode == 404)
+    if (response.StatusCode == 400)
+    {
+        response.Redirect("/Error/400"); // Redirect to 400 error page
+    }
+    else if (response.StatusCode == 404)
     {
         response.Redirect("/Error/404"); // Redirect to 404 error page
     }
@@ -117,15 +122,18 @@ app.UseStatusCodePages(async context =>
         response.Redirect("/Error/403"); // Redirect to 403 error page
     }
 });
+app.UseSession();
+app.UseAuthentication();
+//app.UseMiddleware<SessionValidationMiddleware>();
 
+app.UseAuthorization();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseSession();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<SessionValidationMiddleware>();
+
+
+
 
 
 app.MapControllerRoute(
