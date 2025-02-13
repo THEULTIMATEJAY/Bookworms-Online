@@ -10,6 +10,7 @@ using reCAPTCHA.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 namespace Bookworms_Online.Controllers
 {
     public class AccountController : Controller
@@ -22,10 +23,10 @@ namespace Bookworms_Online.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly EmailService _emailService;
         private readonly PasswordHistoryService _passwordHistoryService;
-        private readonly SessionTrackingService _sessionTrackingService;
+        private readonly ApplicationDbContext _context;
         private readonly AuditLogService _auditLogService;
 
-        public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, EncryptionService encryptionService, IWebHostEnvironment webHostEnvironment, ReCaptchaService reCaptchaService, EmailService emailService, PasswordHistoryService passwordHistoryService, SessionTrackingService sessionTrackingService, ILogger<AccountController> logger,AuditLogService auditLogService)
+        public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, EncryptionService encryptionService, IWebHostEnvironment webHostEnvironment, ReCaptchaService reCaptchaService, EmailService emailService, PasswordHistoryService passwordHistoryService, ILogger<AccountController> logger,AuditLogService auditLogService,ApplicationDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -35,7 +36,7 @@ namespace Bookworms_Online.Controllers
             _logger = logger;
             _emailService = emailService;
             _passwordHistoryService = passwordHistoryService;
-            _sessionTrackingService = sessionTrackingService;
+            _context = context;
             _auditLogService = auditLogService ?? throw new ArgumentNullException(nameof(auditLogService));
 
 
@@ -74,7 +75,7 @@ namespace Bookworms_Online.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
         {
-           
+            
 
             _logger.LogInformation("Login attempt for: " + model.Email);
             ViewData["ReturnUrl"] = returnUrl;
@@ -103,12 +104,29 @@ namespace Bookworms_Online.Controllers
                 ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                _logger.LogWarning($"Login failed: Account locked for {user.Email}");
+                ModelState.AddModelError("", "Account locked due to multiple failed login attempts.");
+                return View(model);
+            }
+            // Check if the user's current session ID is null or matches the current session
+            var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
+            if (!string.IsNullOrEmpty(user.CurrentSessionId) && user.CurrentSessionId != currentSessionId)
+            {
+                // Invalidate the previous session
+                _logger.LogInformation($"Invalidating previous session for user {user.Email}");
+                await _signInManager.SignOutAsync(); // Sign out the user from the previous session
+                HttpContext.Session.Clear(); // Clear the session
+                ModelState.AddModelError("", "You have been logged out due to a new login.");
+                return View(model);
+            }
             bool isPasswordCorrect = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordCorrect)
             {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var resetLink = Url.Action("ResetPassword", "Account", new { token, email = model.Email }, Request.Scheme);
-
+                await _userManager.AccessFailedAsync(user);
                 if (user.Email != null)
                 {
                     await _emailService.SendEmailAsync(user.Email, "Password Reset Request",
@@ -123,23 +141,25 @@ namespace Bookworms_Online.Controllers
                 ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
-
+            
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, true);
             if (result.Succeeded)
             {
-                string userId = user.Id;
-                string userEmail = user.Email;
-                string sessionID = Guid.NewGuid().ToString();
+                // Generate a new session ID
+                var sessionId = Guid.NewGuid().ToString();
+                HttpContext.Session.SetString("CurrentSessionId", sessionId);
 
-                HttpContext.Session.SetString("User Id", userId);
-                HttpContext.Session.SetString("User Email", userEmail);
-                HttpContext.Session.SetString("CurrentSessionId", sessionID);
+                // Update the user's session ID in the database
+                user.CurrentSessionId = sessionId;
 
-                _logger.LogInformation($"Session created for user {userEmail}");
+                await _userManager.UpdateAsync(user);
+                HttpContext.Session.SetString("User Id", user.Id);
+                HttpContext.Session.SetString("User Email", user.Email);
+                _logger.LogInformation($"Session created for user {user.Email}");
 
                 
                 await _auditLogService.LogActionAsync(user.Id, "Login Successful");
-
+                
                 if (user.IsTwoFactorEnabled)
                 {
                     // Generate OTP and store it in the session
@@ -466,6 +486,71 @@ namespace Bookworms_Online.Controllers
                 await _auditLogService.LogActionAsync(user.Id, "Password Reset");
                 TempData["SuccessMessage"] = "Your password has been reset successfully. You can now log in with your new password.";
                 return RedirectToAction("Login", "Account");
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
+            }
+
+            return View(model);
+        }
+        [Authorize]
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            var passwordHistories = await _context.PasswordHistories
+        .Where(ph => ph.UserId == user.Id)
+        .OrderByDescending(ph => ph.CreatedAt)
+        .Take(2)
+        .ToListAsync();
+
+            foreach (var history in passwordHistories)
+            {
+                var passwordHasher = new PasswordHasher<ApplicationUser>();
+                if (passwordHasher.VerifyHashedPassword(user, history.PasswordHash, model.NewPassword) == PasswordVerificationResult.Success)
+                {
+                    ModelState.AddModelError("", "You cannot reuse your last two passwords.");
+                    return View(model);
+                }
+            }
+            if (user.LastPasswordChangeDate.HasValue && (DateTime.UtcNow - user.LastPasswordChangeDate.Value).TotalMinutes < 30)
+            {
+                ModelState.AddModelError("", "You must wait at least 30 minutes before changing your password again.");
+                return View(model);
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+            if (result.Succeeded)
+            {
+                // Save the new password hash to history
+                var newPasswordHash = _userManager.PasswordHasher.HashPassword(user, model.NewPassword);
+                _context.PasswordHistories.Add(new PasswordHistory { UserId = user.Id, PasswordHash = newPasswordHash, CreatedAt = DateTime.UtcNow });
+                await _context.SaveChangesAsync();
+                user.LastPasswordChangeDate = DateTime.UtcNow;
+                await _userManager.UpdateAsync(user);
+
+                _logger.LogInformation("User changed their password successfully.");
+                TempData["SuccessMessage"] = "Your password has been changed successfully.";
+                return RedirectToAction("Index", "Home");
             }
 
             foreach (var error in result.Errors)

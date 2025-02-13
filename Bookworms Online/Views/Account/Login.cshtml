@@ -4,6 +4,8 @@
 
 <form method="post" asp-controller="Account" asp-action="Login">
     @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="text-danger"></div>
+
     <div>
         <label>Email:</label>
         <input asp-for="Email" />

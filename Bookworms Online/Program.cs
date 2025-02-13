@@ -3,6 +3,7 @@ using Bookworms_Online.Models;
 using Bookworms_Online.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 var builder = WebApplication.CreateBuilder(args);
 
 // Enable logging
@@ -16,6 +17,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
@@ -26,7 +29,7 @@ builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PasswordHistoryService>();
 builder.Services.AddScoped<ReCaptchaService>();
-builder.Services.AddScoped<SessionTrackingService>();
+
 builder.Services.AddHttpClient();
 
 builder.Services.AddSession(options =>
@@ -46,9 +49,10 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
 
+
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
     options.Lockout.MaxFailedAccessAttempts = 3;
-
+    options.Lockout.AllowedForNewUsers = true;
 
 });
 var app = builder.Build();
@@ -93,11 +97,26 @@ var serviceProvider = builder.Services.BuildServiceProvider();
 
 
 
+// Configure error handling
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error/ErrorPage");
-    app.UseHsts();
+    app.UseExceptionHandler("/Error/500"); // Redirect to 500 error page
+app.UseHsts();
 }
+
+// Use status code pages for 404 and 403
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (response.StatusCode == 404)
+    {
+        response.Redirect("/Error/404"); // Redirect to 404 error page
+    }
+    else if (response.StatusCode == 403)
+    {
+        response.Redirect("/Error/403"); // Redirect to 403 error page
+    }
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -106,7 +125,9 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<SessionTimeoutMiddleware>();
+app.UseMiddleware<SessionValidationMiddleware>();
+
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

@@ -29,13 +29,16 @@
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Manage2FA">2FA Settings</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="ChangePassword">Change Password</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Admin" asp-action="AuditLogs">Audit Logs</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a>
+                                <form asp-controller="Account" asp-action="Logout" method="post" style="display:inline;">
+                                    
+                                    <button type="submit" class="nav-link text-dark" style="border: none; background: none; cursor: pointer;">Logout</button>
+                                </form>
                             </li>
                         }
                         else

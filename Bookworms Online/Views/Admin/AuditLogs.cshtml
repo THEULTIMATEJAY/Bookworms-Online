@@ -12,6 +12,14 @@
         </tr>
     </thead>
     <tbody>
+         @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="4">No audit logs found for your account.</td>
+            </tr>
+        }
+        else
+        {
         @foreach (var log in Model)
         {
             <tr>
@@ -20,6 +28,7 @@
                 <td>@log.IPAddress</td>
                 <td>@log.Timestamp</td>
             </tr>
+        }
         }
     </tbody>
 </table>

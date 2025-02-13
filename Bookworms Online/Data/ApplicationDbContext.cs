@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Bookworms_Online.Models;
+using System.Reflection.Emit;
 namespace Bookworms_Online.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
@@ -10,11 +11,14 @@ namespace Bookworms_Online.Data
 
         public new DbSet<ApplicationUser> Users { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<PasswordHistory> PasswordHistories { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
             builder.Entity<ApplicationUser>().HasIndex(u => u.Email).IsUnique();
+            
         }
     }
 }

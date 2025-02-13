@@ -39,6 +39,7 @@ namespace Bookworms_Online.Migrations
                     PhotoPath = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     IsTwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
                     CurrentSessionId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LastPasswordChangeDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -181,6 +182,27 @@ namespace Bookworms_Online.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "PasswordHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PasswordHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PasswordHistories_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -226,6 +248,11 @@ namespace Bookworms_Online.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PasswordHistories_UserId",
+                table: "PasswordHistories",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -248,6 +275,9 @@ namespace Bookworms_Online.Migrations
 
             migrationBuilder.DropTable(
                 name: "AuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "PasswordHistories");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

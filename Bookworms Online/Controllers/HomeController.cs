@@ -31,5 +31,9 @@ namespace Bookworms_Online.Controllers
 
             return View(user);
         }
+        public async Task<IActionResult> Privacy()
+        {
+            return View();
+        }
     }
 }
