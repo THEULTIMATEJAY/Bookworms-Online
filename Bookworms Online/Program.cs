@@ -126,12 +126,12 @@ app.UseSession();
 app.UseAuthentication();
 //app.UseMiddleware<SessionValidationMiddleware>();
 
-app.UseAuthorization();
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseAuthorization();
 
 
 

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using System.Web;
 namespace Bookworms_Online.Controllers
 {
     public class AccountController : Controller
@@ -137,17 +138,34 @@ namespace Bookworms_Online.Controllers
             //    ModelState.AddModelError("", "You are already logged in on another browser.1");
             //    return View(model);
             //}
+            // Handle multiple browser logins
+            var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
+            if (user.CurrentSessionId != null && user.CurrentSessionId != currentSessionId)
+            {
+                _logger.LogWarning($"User {user.Email} is logged in on another browser. Invalidating the earlier session.");
+
+                // Invalidate the previous session
+                await InvalidateOldSessionAsync(user);
+                await _signInManager.SignOutAsync();
+                HttpContext.Session.Clear();
+                Response.Cookies.Delete(".AspNetCore.Identity.Application");
+                await _userManager.UpdateAsync(user);
+
+
+                HttpContext.Response.Redirect("/Account/Login");
+                //return View(model);
+            }
             HttpContext.Session.Clear();
             Response.Cookies.Delete(".AspNetCore.Identity.Application");
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, true);
             if (result.Succeeded)
             {
 
-                var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
+                //var currentSessionId = HttpContext.Session.GetString("CurrentSessionId");
                 // Generate a new session ID
                 var sessionId = Guid.NewGuid().ToString();
                 _logger.LogInformation($"Session ID: {sessionId}");
-                _logger.LogInformation($"Current Session ID: {currentSessionId}");
+                //_logger.LogInformation($"Current Session ID: {currentSessionId}");
                
                 HttpContext.Session.SetString("CurrentSessionId", sessionId);
 
@@ -198,6 +216,20 @@ namespace Bookworms_Online.Controllers
         {
             var random = new Random();
             return random.Next(100000, 999999).ToString(); // 6-digit OTP
+        }
+        private async Task InvalidateOldSessionAsync(ApplicationUser user)
+        {
+            // If user has a session stored in the database, clear it
+            if (!string.IsNullOrEmpty(user.CurrentSessionId))
+            {
+                _logger.LogInformation($"Invalidating session {user.CurrentSessionId} for user {user.Email}");
+
+                // Perform any session invalidation logic here, for example, removing session data from a database or cache
+
+                // Update the user's session ID to null or a default value in the database
+                user.CurrentSessionId = null;
+                await _userManager.UpdateAsync(user);
+            }
         }
         [AllowAnonymous]
         [HttpPost]
@@ -318,15 +350,15 @@ namespace Bookworms_Online.Controllers
 
             var user = new ApplicationUser
             {
-                FirstName = model.FirstName,
-                LastName = model.LastName,
+                FirstName = HttpUtility.HtmlEncode( model.FirstName ),
+                LastName = HttpUtility.HtmlEncode(model.LastName),
                 CreditCardNo = encryptedCardNumber,
                 MobileNumber = model.MobileNo,
-                BillingAddress = model.BillingAddress,
-                ShippingAddress = model.ShippingAddress,
+                BillingAddress = HttpUtility.HtmlEncode(model.BillingAddress),
+                ShippingAddress = HttpUtility.HtmlEncode(model.ShippingAddress),
                 Email = model.Email,
-                UserName = model.Email,
-                PhotoPath = photoPath
+                UserName = HttpUtility.HtmlEncode(model.Email),
+                PhotoPath = HttpUtility.HtmlEncode(photoPath)
             };
             _logger.LogInformation($"Password Hash: {_userManager.PasswordHasher.HashPassword(user, model.Password)}");
             var result = await _userManager.CreateAsync(user, model.Password);
